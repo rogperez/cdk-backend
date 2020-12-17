@@ -8,3 +8,12 @@ export const get = async function (
     body: 'Hello, world!',
   });
 };
+
+export const create = async function (
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
+  return Promise.resolve({
+    statusCode: 200,
+    body: 'Hello, world!',
+  });
+};

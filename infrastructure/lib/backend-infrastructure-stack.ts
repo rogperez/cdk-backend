@@ -4,6 +4,7 @@ import * as route53 from '@aws-cdk/aws-route53';
 import * as lambda from '@aws-cdk/aws-lambda';
 import * as apigateway from '@aws-cdk/aws-apigateway';
 import * as route53Targets from '@aws-cdk/aws-route53-targets';
+import * as dynamodb from '@aws-cdk/aws-dynamodb';
 
 import * as path from 'path';
 
@@ -23,25 +24,64 @@ export class BackendInfrastructureStack extends cdk.Stack {
     const apiFqdn = `${subdomain}.${zoneDomainName}`;
 
     /*
+     * DyanamoDB
+     */
+    const table = new dynamodb.Table(this, 'AmazingSongs', {
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+    });
+
+    /*
      * Rest API
      */
-    const getSongsFunction = new lambda.Function(this, 'SongsGetFunction', {
-      runtime: lambda.Runtime.NODEJS_12_X,
-      code: lambda.Code.fromAsset(
-        path.join(__dirname, '..', '..', 'backend', 'build')
-      ),
-      handler: 'songs_controller.get',
-    });
-    const getSongsIntegration = new apigateway.LambdaIntegration(
-      getSongsFunction
-    );
     const api = new apigateway.RestApi(this, 'SongsAPI', {
       deployOptions: {
         loggingLevel: apigateway.MethodLoggingLevel.ERROR,
       },
     });
     const songs = api.root.addResource('songs');
+    const codeAsset = lambda.Code.fromAsset(
+      path.join(__dirname, '..', '..', 'backend', 'build')
+    );
+    const lambdaFnProps: lambda.FunctionProps = {
+      runtime: lambda.Runtime.NODEJS_12_X,
+      code: codeAsset,
+      environment: {
+        TABLE_NAME: table.tableName,
+      },
+      handler: '',
+    };
+
+    // Get
+    const getSongsFunction = new lambda.Function(this, 'SongsGetFunction', {
+      ...lambdaFnProps,
+      handler: 'songs_contoller.get',
+    });
+    const getSongsIntegration = new apigateway.LambdaIntegration(
+      getSongsFunction
+    );
     songs.addMethod('GET', getSongsIntegration);
+
+    // Create
+    const createSongsFunction = new lambda.Function(
+      this,
+      'SongsCreateFunction',
+      {
+        ...lambdaFnProps,
+        handler: 'songs_controller.create',
+      }
+    );
+    const createSongsIntegration = new apigateway.LambdaIntegration(
+      createSongsFunction
+    );
+    songs.addMethod('POST', createSongsIntegration);
+
+    /*
+     * Assign Permissions
+     */
+    table.grantReadWriteData(createSongsFunction);
+    table.grantReadData(getSongsFunction);
 
     /*
      * Domain
