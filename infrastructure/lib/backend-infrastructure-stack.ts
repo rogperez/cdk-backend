@@ -41,6 +41,17 @@ export class BackendInfrastructureStack extends cdk.Stack {
       },
     });
     const songs = api.root.addResource('songs');
+
+    // Lambda Fn Defaults
+    // Lambda nodejs layer (node_modules as Lambda Layer)
+    const layer = new lambda.LayerVersion(this, 'SongsDependencyLayer', {
+      code: lambda.Code.fromAsset(
+        path.join(__dirname, '..', '..', 'backend', 'layers')
+      ),
+      compatibleRuntimes: [lambda.Runtime.NODEJS_12_X],
+      description: 'NodeJS Dependencies for Songs API',
+    });
+
     const codeAsset = lambda.Code.fromAsset(
       path.join(__dirname, '..', '..', 'backend', 'build')
     );
@@ -50,13 +61,14 @@ export class BackendInfrastructureStack extends cdk.Stack {
       environment: {
         TABLE_NAME: table.tableName,
       },
+      layers: [layer],
       handler: '',
     };
 
     // Get
     const getSongsFunction = new lambda.Function(this, 'SongsGetFunction', {
       ...lambdaFnProps,
-      handler: 'songs_contoller.get',
+      handler: 'songs_controller.get',
     });
     const getSongsIntegration = new apigateway.LambdaIntegration(
       getSongsFunction
