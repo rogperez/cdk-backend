@@ -10,15 +10,29 @@ import { DynamoDB, AWSError } from 'aws-sdk';
 import * as uuid from 'uuid';
 
 const db = new DynamoDB.DocumentClient();
+const tableName = process.env.TABLE_NAME || '';
 
-export const get = async function (
+export const get = function (
   event: APIGatewayProxyEvent,
-  context: Context
-): Promise<APIGatewayProxyResult> {
-  return Promise.resolve({
-    statusCode: 200,
-    body: 'Hello, world!',
-  });
+  context: Context,
+  callback: Callback
+) {
+  db.query(
+    {
+      TableName: tableName,
+      KeyConditionExpression: '#PK = :PK',
+      ExpressionAttributeNames: { '#PK': 'PK' },
+      ExpressionAttributeValues: {
+        ':PK': 'SONG',
+      },
+    },
+    (error: AWSError, data) => {
+      callback(null, {
+        statusCode: 200,
+        body: JSON.stringify(data),
+      });
+    }
+  );
 };
 
 export const create = function (
@@ -26,14 +40,14 @@ export const create = function (
   _context: Context,
   callback: Callback
 ) {
-  const tableName = process.env.TABLE_NAME || '';
   const data = JSON.parse(event.body || '');
   const id = uuid.v1();
   const params: DynamoDB.DocumentClient.PutItemInput = {
     TableName: tableName,
     Item: {
-      PK: `SONG#${id}`,
+      PK: `SONG`,
       SK: `#METADATA#${id}`,
+      SongID: id,
       Title: data.title,
     },
   };
