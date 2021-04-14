@@ -1,25 +1,20 @@
-import {
-  expect as expectCDK,
-  matchTemplate,
-  MatchStyle,
-} from '@aws-cdk/assert';
+import { expect as expectCDK, haveResource } from '@aws-cdk/assert';
 import * as cdk from '@aws-cdk/core';
-import * as BackendInfrastructure from '../lib/BackendInfrastructure-stack';
+import { BackendInfrastructureStack } from '../lib/backend-infrastructure-stack';
 
 test('Empty Stack', () => {
   const app = new cdk.App();
   // WHEN
-  const stack = new BackendInfrastructure.BackendInfrastructureStack(
-    app,
-    'MyTestStack'
-  );
+
+  const stack = new BackendInfrastructureStack(app, 'MyTestStack', {
+    env: {
+      account: '123456890',
+      region: 'us-east-1',
+    },
+    zoneDomainName: 'foo',
+    subdomain: 'bar',
+  });
+
   // THEN
-  expectCDK(stack).to(
-    matchTemplate(
-      {
-        Resources: {},
-      },
-      MatchStyle.EXACT
-    )
-  );
+  expectCDK(stack).to(haveResource('AWS::DynamoDB::Table'));
 });
